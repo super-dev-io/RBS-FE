@@ -39,8 +39,8 @@ export interface Bidder {
 export type AiProviderName = "openai" | "anthropic";
 
 export const AI_MODELS = {
-  openai: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"],
-  anthropic: ["claude-sonnet-4-6", "claude-haiku-4-5", "claude-opus-4-7"],
+  openai: ["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini"],
+  anthropic: ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"],
 } as const satisfies Record<AiProviderName, readonly string[]>;
 
 export interface BidderProfileSummary {
