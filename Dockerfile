@@ -1,10 +1,10 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 ARG VITE_API_URL=http://localhost:4000/api
 ENV VITE_API_URL=${VITE_API_URL}
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 COPY . .
 RUN npm run build
