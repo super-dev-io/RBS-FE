@@ -1,11 +1,10 @@
 import { api, getApiUrl, tokenStore } from "./client";
-import type { PaginatedResponse, ResumeTemplate } from "@/types";
+import type { PaginatedResponse, ResumeTemplate, TemplateConfig } from "@/types";
 
 export interface TemplateInput {
   name: string;
   description?: string;
-  htmlTemplate: string;
-  cssStyles: string;
+  config: TemplateConfig;
   thumbnailUrl?: string;
 }
 

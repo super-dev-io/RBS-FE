@@ -16,14 +16,14 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/format";
-import type { Profile } from "@/types";
+import { AI_MODELS, type AdminProfile, type AiProviderName } from "@/types";
 
 export default function AdminProfiles() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminProfile | null>(null);
 
   const list = useQuery({
     queryKey: ["admin", "profiles", { page, search }],
@@ -176,7 +176,9 @@ function CreateProfileModal({
   loading?: boolean;
   templates: Array<{ id: string; name: string }>;
 }) {
-  const { register, handleSubmit, reset, formState } = useForm<ProfileInput>();
+  const { register, handleSubmit, reset, formState, watch, setValue } = useForm<ProfileInput>();
+  const templateId = watch("defaultPdfTemplateId");
+  const provider = watch("aiProvider");
   return (
     <Modal
       open={open}
@@ -197,7 +199,12 @@ function CreateProfileModal({
         id="create-profile-form"
         className="grid grid-cols-1 gap-4 sm:grid-cols-2"
         onSubmit={handleSubmit((v) => {
-          onSubmit(v);
+          onSubmit({
+            ...v,
+            defaultPdfTemplateId: v.defaultPdfTemplateId || null,
+            aiProvider: v.aiProvider || null,
+            aiModel: v.aiProvider ? v.aiModel || null : null,
+          });
           reset();
         })}
       >
@@ -214,6 +221,28 @@ function CreateProfileModal({
             </option>
           ))}
         </Select>
+        {templateId && (
+          <div className="sm:col-span-2">
+            <CreateTemplatePreview templateId={templateId} />
+          </div>
+        )}
+        <Select
+          label="AI provider"
+          {...register("aiProvider", { onChange: () => setValue("aiModel", null) })}
+        >
+          <option value="">— Use default —</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+        </Select>
+        <Select label="AI model" {...register("aiModel")} disabled={!provider}>
+          <option value="">— Use default —</option>
+          {provider &&
+            AI_MODELS[provider as AiProviderName].map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+        </Select>
         <Textarea
           label="Master prompt (knowledge base)"
           className="sm:col-span-2 min-h-[220px]"
@@ -223,6 +252,36 @@ function CreateProfileModal({
         />
       </form>
     </Modal>
+  );
+}
+
+function CreateTemplatePreview({ templateId }: { templateId: string }) {
+  const preview = useQuery({
+    queryKey: ["admin", "template-preview", templateId],
+    queryFn: () => templatesApi.previewHtml(templateId),
+    enabled: !!templateId,
+    staleTime: 60_000,
+  });
+  return (
+    <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-800">
+      <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        Template preview
+      </div>
+      <div className="bg-white">
+        {preview.isLoading ? (
+          <div className="p-6 text-sm text-slate-500">Loading preview…</div>
+        ) : preview.data ? (
+          <iframe
+            title="template-preview"
+            className="h-[360px] w-full border-0"
+            srcDoc={preview.data}
+            sandbox=""
+          />
+        ) : (
+          <div className="p-6 text-sm text-slate-500">Failed to load preview.</div>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
+import { AI_MODELS, type AiProviderName } from "@/types";
 
 export default function AdminProfileDetail() {
   const { id = "" } = useParams();
@@ -115,7 +116,7 @@ function ProfileForm({
   loading: boolean;
   onSubmit: (v: Partial<ProfileInput>) => void;
 }) {
-  const { register, handleSubmit, formState } = useForm<ProfileInput>({
+  const { register, handleSubmit, formState, watch, setValue } = useForm<ProfileInput>({
     defaultValues: {
       fullName: defaults.fullName ?? "",
       email: defaults.email ?? "",
@@ -124,15 +125,30 @@ function ProfileForm({
       address: defaults.address ?? "",
       masterPrompt: defaults.masterPrompt ?? "",
       defaultPdfTemplateId: defaults.defaultPdfTemplateId ?? "",
+      aiProvider: defaults.aiProvider ?? null,
+      aiModel: defaults.aiModel ?? null,
     },
   });
+  const templateId = watch("defaultPdfTemplateId");
+  const provider = watch("aiProvider");
   return (
-    <form className="grid grid-cols-1 gap-4 sm:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
+    <form
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+      onSubmit={handleSubmit((v) =>
+        onSubmit({
+          ...v,
+          defaultPdfTemplateId: v.defaultPdfTemplateId || null,
+          aiProvider: v.aiProvider || null,
+          aiModel: v.aiProvider ? v.aiModel || null : null,
+        })
+      )}
+    >
       <Input label="Full name" {...register("fullName", { required: true })} error={formState.errors.fullName?.message} />
       <Input label="Email" type="email" {...register("email", { required: true })} error={formState.errors.email?.message} />
       <Input label="Phone number" {...register("phoneNumber")} />
       <Input label="LinkedIn URL" {...register("linkedinUrl")} />
       <Input label="Address" className="sm:col-span-2" {...register("address")} />
+
       <Select label="Default PDF template" className="sm:col-span-2" {...register("defaultPdfTemplateId")}>
         <option value="">— None —</option>
         {templates.map((t) => (
@@ -141,6 +157,33 @@ function ProfileForm({
           </option>
         ))}
       </Select>
+
+      {templateId && (
+        <div className="sm:col-span-2">
+          <TemplatePreview templateId={templateId} />
+        </div>
+      )}
+
+      <Select
+        label="AI provider"
+        {...register("aiProvider", {
+          onChange: () => setValue("aiModel", null),
+        })}
+      >
+        <option value="">— Use default —</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+      </Select>
+      <Select label="AI model" {...register("aiModel")} disabled={!provider}>
+        <option value="">— Use default —</option>
+        {provider &&
+          AI_MODELS[provider as AiProviderName].map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+      </Select>
+
       <Textarea
         label="Master prompt"
         className="sm:col-span-2 min-h-[260px] font-mono text-xs"
@@ -152,6 +195,36 @@ function ProfileForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function TemplatePreview({ templateId }: { templateId: string }) {
+  const preview = useQuery({
+    queryKey: ["admin", "template-preview", templateId],
+    queryFn: () => templatesApi.previewHtml(templateId),
+    enabled: !!templateId,
+    staleTime: 60_000,
+  });
+  return (
+    <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-800">
+      <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        Template preview
+      </div>
+      <div className="bg-white">
+        {preview.isLoading ? (
+          <div className="p-6 text-sm text-slate-500">Loading preview…</div>
+        ) : preview.data ? (
+          <iframe
+            title="template-preview"
+            className="h-[420px] w-full border-0"
+            srcDoc={preview.data}
+            sandbox=""
+          />
+        ) : (
+          <div className="p-6 text-sm text-slate-500">Failed to load preview.</div>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -64,9 +64,6 @@ export default function BidderProfiles() {
                   </span>
                 )}
               </div>
-              <p className="mt-3 line-clamp-3 text-sm text-slate-500">
-                {p.masterPrompt.slice(0, 200)}
-              </p>
               <div className="mt-auto flex items-center justify-between pt-4">
                 <span className="text-xs text-slate-400">
                   {p.phoneNumber ?? "—"}

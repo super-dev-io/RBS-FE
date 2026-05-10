@@ -123,12 +123,12 @@ export default function BidderGenerate() {
                     </span>
                   </div>
                 )}
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-slate-500">Master prompt</div>
-                  <pre className="mt-1 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-3 text-xs leading-relaxed dark:bg-slate-950">
-                    {selectedProfile.masterPrompt}
-                  </pre>
-                </div>
+                {selectedProfile.phoneNumber && (
+                  <div className="text-xs text-slate-500">{selectedProfile.phoneNumber}</div>
+                )}
+                {selectedProfile.linkedinUrl && (
+                  <div className="text-xs text-slate-500">{selectedProfile.linkedinUrl}</div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-slate-500">
