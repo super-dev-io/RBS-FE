@@ -34,6 +34,8 @@ export interface Bidder {
   createdAt: string;
   updatedAt?: string;
   assignments?: Array<{ profile: { id: string; fullName: string; email: string } }>;
+  _count?: { assignments?: number; generations?: number };
+  lastActiveAt?: string | null;
 }
 
 export type AiProviderName = "openai" | "anthropic";
@@ -76,10 +78,27 @@ export type BlockKind =
   | "education"
   | "certifications";
 
+export type BlockAlignment = "left" | "center" | "right" | "justify";
+
+export interface BlockHeadingStyle {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  uppercase?: boolean;
+}
+
+export interface BlockStyle {
+  fontSize?: number;
+  textColor?: string;
+  alignment?: BlockAlignment;
+  headingStyle?: BlockHeadingStyle;
+}
+
 export interface BlockConfig {
   kind: BlockKind;
   enabled: boolean;
   order: number;
+  style?: BlockStyle;
 }
 
 export type FontFamily = "Inter" | "Lora" | "Source Sans" | "Playfair";
@@ -92,6 +111,7 @@ export interface ThemeConfig {
   baseFontSize: number;
   density: Density;
   layout: Layout;
+  timeline?: boolean;
 }
 
 export interface TemplateConfig {
@@ -128,6 +148,7 @@ export interface ResumeTemplate {
   thumbnailUrl?: string | null;
   createdAt: string;
   updatedAt: string;
+  _count?: { defaultForProfiles?: number; generations?: number };
 }
 
 export interface ResumeGeneration {
@@ -142,8 +163,8 @@ export interface ResumeGeneration {
   aiProvider?: string | null;
   aiModel?: string | null;
   generatedContent?: any;
-  pdfPath?: string | null;
-  pdfUrl?: string | null;
+  coverLetterContent?: string | null;
+  hasCoverLetter?: boolean;
   errorMessage?: string | null;
   createdAt: string;
   completedAt?: string | null;
@@ -164,5 +185,26 @@ export interface WorkLog {
   completedAt?: string | null;
   bidder?: { id: string; name: string; email: string };
   profile?: { id: string; fullName: string };
-  generatedResume?: { id: string; pdfUrl?: string | null; status: GenerationStatus } | null;
+  generatedResume?: {
+    id: string;
+    status: GenerationStatus;
+    jobDescription?: string | null;
+    companyName?: string | null;
+    roleTitle?: string | null;
+    createdAt?: string | null;
+    completedAt?: string | null;
+    aiProvider?: string | null;
+    aiModel?: string | null;
+  } | null;
+}
+
+export interface AdminWorkLogBidder {
+  bidder: { id: string; name: string; email: string };
+  logCount: number;
+  lastActivityAt: string | null;
+}
+
+export interface AdminWorkLogFolder {
+  date: string;
+  count: number;
 }

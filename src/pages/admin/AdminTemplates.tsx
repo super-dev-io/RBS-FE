@@ -1,19 +1,21 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { templatesApi } from "@/api/templates";
+import { tokenStore, getApiUrl } from "@/api/client";
 import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { formatDate } from "@/lib/format";
+import { TemplateIcon, KebabIcon } from "@/components/ui/Icons";
+import { cn } from "@/lib/cn";
 import type { ResumeTemplate } from "@/types";
 
 export default function AdminTemplates() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [target, setTarget] = useState<ResumeTemplate | null>(null);
@@ -41,68 +43,46 @@ export default function AdminTemplates() {
         actions={<Link to="/admin/templates/new" className="btn-primary">New template</Link>}
       />
 
-      <div className="card">
-        <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <Input
-            placeholder="Search by name…"
-            className="max-w-sm"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+      <div className="mb-4 flex items-center gap-3">
+        <Input
+          placeholder="Search by name…"
+          className="max-w-sm"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {list.isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-64" />
+          ))}
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/40">
-              <tr>
-                <Th>Name</Th>
-                <Th>Description</Th>
-                <Th>Updated</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {list.isLoading
-                ? Array.from({ length: 4 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 4 }).map((_, c) => (
-                        <td key={c} className="px-4 py-3"><Skeleton /></td>
-                      ))}
-                    </tr>
-                  ))
-                : list.data?.data.map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40">
-                      <td className="px-4 py-3 font-medium">
-                        <Link to={`/admin/templates/${t.id}`} className="hover:underline">
-                          {t.name}
-                        </Link>
-                      </td>
-                      <Td className="text-slate-500">{t.description ?? "—"}</Td>
-                      <Td>{formatDate(t.updatedAt)}</Td>
-                      <Td className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Link to={`/admin/templates/${t.id}`} className="btn-ghost">
-                            Edit
-                          </Link>
-                          <Button variant="ghost" onClick={() => setTarget(t)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </Td>
-                    </tr>
-                  ))}
-              {!list.isLoading && list.data?.data.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                    No templates yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      ) : list.data?.data.length === 0 ? (
+        <div className="card px-6 py-12 text-center text-sm text-slate-500">
+          No templates yet.
         </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {list.data?.data.map((t) => {
+            const usedBy = t._count?.defaultForProfiles ?? 0;
+            return (
+              <TemplateCard
+                key={t.id}
+                template={t}
+                usedBy={usedBy}
+                onEdit={() => navigate(`/admin/templates/${t.id}`)}
+                onDelete={() => setTarget(t)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-4">
         <Pagination
           page={page}
           totalPages={list.data?.pagination.totalPages ?? 1}
@@ -125,15 +105,130 @@ export default function AdminTemplates() {
   );
 }
 
-function Th({
-  children,
-  className = "",
+function TemplateCard({
+  template,
+  usedBy,
+  onEdit,
+  onDelete,
 }: {
-  children: React.ReactNode;
-  className?: string;
+  template: ResumeTemplate;
+  usedBy: number;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
-  return <th className={`px-4 py-3 text-left font-semibold ${className}`}>{children}</th>;
+  return (
+    <div className="card group relative flex flex-col overflow-hidden p-0 transition hover:border-brand-400 hover:shadow-md">
+      <CardMenu onEdit={onEdit} onDelete={onDelete} />
+      <button
+        type="button"
+        onClick={onEdit}
+        className="block w-full text-left"
+      >
+        <TemplateThumbnail templateId={template.id} />
+      </button>
+      <div className="space-y-2 p-4">
+        <div>
+          <div className="truncate font-semibold text-slate-800 dark:text-slate-100">
+            {template.name}
+          </div>
+          <div className="truncate text-xs text-slate-500">
+            {template.description ?? "No description"}
+          </div>
+        </div>
+        <div>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-medium",
+              usedBy === 0
+                ? "bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400"
+                : "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+            )}
+          >
+            {usedBy === 0 ? "Not in use" : `Used by ${usedBy} profile${usedBy === 1 ? "" : "s"}`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
+
+function CardMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  return (
+    <div ref={ref} className="absolute right-3 top-3 z-10">
+      <button
+        type="button"
+        aria-label="Actions"
+        onClick={() => setOpen((o) => !o)}
+        className="rounded bg-white/90 p-1 text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-800 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-900"
+      >
+        <KebabIcon />
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 min-w-[120px] overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onEdit(); }}
+            className="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onDelete(); }}
+            className="block w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-slate-50 dark:text-red-400 dark:hover:bg-slate-800"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplateThumbnail({ templateId }: { templateId: string }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin", "template-thumbnail", templateId],
+    queryFn: async () => {
+      const token = tokenStore.getAccess();
+      const res = await fetch(`${getApiUrl()}/admin/templates/${templateId}/thumbnail.png`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error("Failed to load thumbnail");
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    },
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex aspect-[4/3] w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <Skeleton className="h-3/4 w-3/4" />
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="flex aspect-[4/3] w-full items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <TemplateIcon className="h-16 w-16" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={data}
+      alt="Template thumbnail"
+      className="aspect-[4/3] w-full bg-white object-cover object-top"
+    />
+  );
 }

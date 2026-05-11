@@ -10,7 +10,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Badge } from "@/components/ui/Badge";
+import { EntityCard } from "@/components/ui/EntityCard";
+import { Avatar } from "@/components/ui/Icons";
 import { formatDate } from "@/lib/format";
 import type { Bidder } from "@/types";
 
@@ -77,72 +78,55 @@ export default function AdminBidders() {
         actions={<Button onClick={() => setCreateOpen(true)}>New bidder</Button>}
       />
 
-      <div className="card overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-          <Input
-            placeholder="Search by name or email…"
-            className="max-w-sm"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+      <div className="mb-4 flex items-center gap-3">
+        <Input
+          placeholder="Search by name or email…"
+          className="max-w-sm"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {list.isLoading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500 dark:bg-slate-900/40">
-              <tr>
-                <Th>Name</Th>
-                <Th>Email</Th>
-                <Th>Status</Th>
-                <Th>Created</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {list.isLoading
-                ? Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i}>
-                      {Array.from({ length: 5 }).map((_, c) => (
-                        <td key={c} className="px-4 py-3">
-                          <Skeleton />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                : list.data?.data.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40">
-                      <Td className="font-medium">{b.name}</Td>
-                      <Td className="text-slate-500">{b.email}</Td>
-                      <Td>
-                        <Badge variant={b.isActive ? "success" : "neutral"}>
-                          {b.isActive ? "Active" : "Disabled"}
-                        </Badge>
-                      </Td>
-                      <Td>{formatDate(b.createdAt)}</Td>
-                      <Td className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" onClick={() => setEditTarget(b)}>
-                            Edit
-                          </Button>
-                          <Button variant="ghost" onClick={() => setDeleteTarget(b)}>
-                            Delete
-                          </Button>
-                        </div>
-                      </Td>
-                    </tr>
-                  ))}
-              {!list.isLoading && list.data?.data.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                    No bidders yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      ) : list.data?.data.length === 0 ? (
+        <div className="card px-6 py-12 text-center text-sm text-slate-500">
+          No bidders yet. Click "New bidder" to create one.
         </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {list.data?.data.map((b) => (
+            <EntityCard
+              key={b.id}
+              leading={<Avatar name={b.name} />}
+              title={b.name}
+              subtitle={b.email}
+              badges={[
+                { label: b.isActive ? "Active" : "Disabled", tone: b.isActive ? "accent" : "muted" },
+                { label: `${b._count?.assignments ?? 0} profiles` },
+                { label: `${b._count?.generations ?? 0} resumes` },
+                {
+                  label: b.lastActiveAt ? `Active ${formatDate(b.lastActiveAt)}` : "No activity",
+                  tone: "muted",
+                },
+              ]}
+              actions={[
+                { label: "Edit", onClick: () => setEditTarget(b) },
+                { label: "Delete", onClick: () => setDeleteTarget(b), destructive: true },
+              ]}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4">
         <Pagination
           page={page}
           totalPages={list.data?.pagination.totalPages ?? 1}
@@ -296,15 +280,3 @@ function EditBidderModal({
   );
 }
 
-function Th({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <th className={`px-4 py-3 text-left font-semibold ${className}`}>{children}</th>;
-}
-function Td({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 align-middle ${className}`}>{children}</td>;
-}

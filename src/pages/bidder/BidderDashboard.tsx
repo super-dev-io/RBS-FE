@@ -58,7 +58,7 @@ export default function BidderDashboard() {
       <div className="card mt-8">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-slate-800">
           <h2 className="section-title">Recent generations</h2>
-          <Link to="/app/history" className="text-sm text-brand-600 hover:underline">
+          <Link to="/app/folders" className="text-sm text-brand-600 hover:underline">
             View all
           </Link>
         </div>

@@ -10,14 +10,12 @@ import AdminProfiles from "./pages/admin/AdminProfiles";
 import AdminProfileDetail from "./pages/admin/AdminProfileDetail";
 import AdminTemplates from "./pages/admin/AdminTemplates";
 import AdminTemplateEditor from "./pages/admin/AdminTemplateEditor";
-import AdminGenerations from "./pages/admin/AdminGenerations";
-import AdminGenerationDetail from "./pages/admin/AdminGenerationDetail";
 import AdminWorkLogs from "./pages/admin/AdminWorkLogs";
 
 import BidderDashboard from "./pages/bidder/BidderDashboard";
 import BidderProfiles from "./pages/bidder/BidderProfiles";
 import BidderGenerate from "./pages/bidder/BidderGenerate";
-import BidderHistory from "./pages/bidder/BidderHistory";
+import BidderFolders from "./pages/bidder/BidderFolders";
 import BidderGenerationDetail from "./pages/bidder/BidderGenerationDetail";
 
 export default function App() {
@@ -47,8 +45,6 @@ export default function App() {
         <Route path="templates" element={<AdminTemplates />} />
         <Route path="templates/new" element={<AdminTemplateEditor />} />
         <Route path="templates/:id" element={<AdminTemplateEditor />} />
-        <Route path="generations" element={<AdminGenerations />} />
-        <Route path="generations/:id" element={<AdminGenerationDetail />} />
         <Route path="work-logs" element={<AdminWorkLogs />} />
       </Route>
 
@@ -63,7 +59,8 @@ export default function App() {
         <Route index element={<BidderDashboard />} />
         <Route path="profiles" element={<BidderProfiles />} />
         <Route path="generate" element={<BidderGenerate />} />
-        <Route path="history" element={<BidderHistory />} />
+        <Route path="folders" element={<BidderFolders />} />
+        <Route path="history" element={<Navigate to="/app/folders" replace />} />
         <Route path="generations/:id" element={<BidderGenerationDetail />} />
       </Route>
 

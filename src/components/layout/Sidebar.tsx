@@ -13,15 +13,13 @@ const adminNav: NavItem[] = [
   { to: "/admin/bidders", label: "Bidders", icon: <Icon name="users" /> },
   { to: "/admin/profiles", label: "Profiles", icon: <Icon name="user-square" /> },
   { to: "/admin/templates", label: "Templates", icon: <Icon name="template" /> },
-  { to: "/admin/generations", label: "Generations", icon: <Icon name="file" /> },
   { to: "/admin/work-logs", label: "Work logs", icon: <Icon name="activity" /> },
 ];
 
 const bidderNav: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: <Icon name="home" /> },
   { to: "/app/profiles", label: "My Profiles", icon: <Icon name="user-square" /> },
-  { to: "/app/generate", label: "Generate", icon: <Icon name="sparkles" /> },
-  { to: "/app/history", label: "History", icon: <Icon name="file" /> },
+  { to: "/app/folders", label: "Folders", icon: <Icon name="file" /> },
 ];
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {

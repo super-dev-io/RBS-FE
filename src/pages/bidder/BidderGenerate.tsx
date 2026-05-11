@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 export default function BidderGenerate() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const label = params.get("workspace") ?? "";
 
   const profiles = useQuery({
     queryKey: ["bidder", "profiles", "all"],
@@ -24,18 +25,22 @@ export default function BidderGenerate() {
   const { register, handleSubmit, formState, watch, setValue } = useForm<CreateGenerationInput>({
     defaultValues: {
       profileId: params.get("profileId") ?? "",
+      label,
       companyName: "",
       roleTitle: "",
       jobDescription: "",
+      generateCoverLetter: true,
     },
   });
 
   useEffect(() => {
     const fromQuery = params.get("profileId");
     if (fromQuery) setValue("profileId", fromQuery);
-  }, [params, setValue]);
+    setValue("label", label);
+  }, [params, setValue, label]);
 
   const profileId = watch("profileId");
+  const generateCoverLetter = watch("generateCoverLetter");
   const selectedProfile = profiles.data?.data.find((p) => p.id === profileId);
 
   const create = useMutation({
@@ -47,18 +52,42 @@ export default function BidderGenerate() {
     onError: (e: any) => toast.error(e?.response?.data?.error?.message ?? "Failed"),
   });
 
+  if (!label) {
+    return (
+      <>
+        <PageHeader
+          title="Generate resume"
+          description="Open or create a workspace first, then come back here to generate."
+        />
+        <div className="card p-8 text-center">
+          <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+            You need a workspace before generating. Head to your workspaces and create one.
+          </p>
+          <Link to="/app/folders" className="btn-primary">
+            Open workspaces
+          </Link>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
         title="Generate resume"
-        description="Pick a profile, paste the job description, and we'll tailor the resume for you."
+        description={`Adding to workspace "${label}". Pick a profile, paste the JD, generate.`}
+        actions={
+          <Link to={`/app/folders?workspace=${encodeURIComponent(label)}`} className="btn-ghost">
+            ← Back to workspace
+          </Link>
+        }
       />
 
       {profiles.isLoading ? (
         <Skeleton className="h-80" />
       ) : (
         <form
-          onSubmit={handleSubmit((v) => create.mutate(v))}
+          onSubmit={handleSubmit((v) => create.mutate({ ...v, label }))}
           className="grid grid-cols-1 gap-6 lg:grid-cols-3"
         >
           <div className="card p-5 space-y-4 lg:col-span-2">
@@ -69,7 +98,9 @@ export default function BidderGenerate() {
               onChange={(e) => {
                 const v = e.target.value;
                 setValue("profileId", v);
-                setParams(v ? { profileId: v } : {});
+                const next: Record<string, string> = { workspace: label };
+                if (v) next.profileId = v;
+                setParams(next);
               }}
             >
               <option value="">— Select a profile —</option>
@@ -100,6 +131,17 @@ export default function BidderGenerate() {
               {...register("jobDescription", { required: "Required", minLength: { value: 20, message: "Add more detail" } })}
               error={formState.errors.jobDescription?.message}
             />
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300"
+                checked={generateCoverLetter ?? true}
+                onChange={(e) => setValue("generateCoverLetter", e.target.checked)}
+              />
+              Also generate a tailored cover letter
+            </label>
+
             <div className="flex items-center justify-end">
               <Button type="submit" loading={create.isPending}>
                 Generate resume

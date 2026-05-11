@@ -11,8 +11,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import {
   ALL_BLOCK_KINDS,
   DEFAULT_TEMPLATE_CONFIG,
+  type BlockAlignment,
   type BlockConfig,
   type BlockKind,
+  type BlockStyle,
   type Density,
   type FontFamily,
   type Layout,
@@ -245,11 +247,20 @@ function BlocksEditor({
     onChange(blocks.map((b) => (b.kind === kind ? { ...b, enabled: !b.enabled } : b)));
   }
 
+  function updateStyle(kind: BlockKind, style: BlockStyle | undefined) {
+    onChange(blocks.map((b) => (b.kind === kind ? { ...b, style } : b)));
+  }
+
   return (
     <ul className="space-y-2">
       {blocks.map((b, idx) => (
         <li
           key={b.kind}
+          className={`rounded-md border bg-white dark:bg-slate-950 ${
+            overKind === b.kind
+              ? "border-brand-500 ring-2 ring-brand-200 dark:ring-brand-900"
+              : "border-slate-200 dark:border-slate-800"
+          }`}
           draggable
           onDragStart={(e) => {
             dragKindRef.current = b.kind;
@@ -274,52 +285,176 @@ function BlocksEditor({
             dragKindRef.current = null;
             setOverKind(null);
           }}
-          className={`flex items-center gap-3 rounded-md border bg-white px-3 py-2 dark:bg-slate-950 ${
-            overKind === b.kind
-              ? "border-brand-500 ring-2 ring-brand-200 dark:ring-brand-900"
-              : "border-slate-200 dark:border-slate-800"
-          }`}
         >
-          <span
-            className="cursor-grab select-none text-slate-400 active:cursor-grabbing"
-            aria-hidden
-          >
-            ⋮⋮
-          </span>
-          <label className="flex flex-1 items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={b.enabled}
-              onChange={() => toggle(b.kind)}
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-            />
-            <span className={b.enabled ? "" : "text-slate-400 line-through"}>
-              {BLOCK_LABELS[b.kind]}
+          <div className="flex items-center gap-3 px-3 py-2">
+            <span
+              className="cursor-grab select-none text-slate-400 active:cursor-grabbing"
+              aria-hidden
+            >
+              ⋮⋮
             </span>
-          </label>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              className="btn-ghost px-2 py-1 text-xs"
-              onClick={() => moveBy(b.kind, -1)}
-              disabled={idx === 0}
-              aria-label={`Move ${BLOCK_LABELS[b.kind]} up`}
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              className="btn-ghost px-2 py-1 text-xs"
-              onClick={() => moveBy(b.kind, 1)}
-              disabled={idx === blocks.length - 1}
-              aria-label={`Move ${BLOCK_LABELS[b.kind]} down`}
-            >
-              ↓
-            </button>
+            <label className="flex flex-1 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={b.enabled}
+                onChange={() => toggle(b.kind)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span className={b.enabled ? "" : "text-slate-400 line-through"}>
+                {BLOCK_LABELS[b.kind]}
+              </span>
+            </label>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                className="btn-ghost px-2 py-1 text-xs"
+                onClick={() => moveBy(b.kind, -1)}
+                disabled={idx === 0}
+                aria-label={`Move ${BLOCK_LABELS[b.kind]} up`}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="btn-ghost px-2 py-1 text-xs"
+                onClick={() => moveBy(b.kind, 1)}
+                disabled={idx === blocks.length - 1}
+                aria-label={`Move ${BLOCK_LABELS[b.kind]} down`}
+              >
+                ↓
+              </button>
+            </div>
           </div>
+          {b.enabled && (
+            <details className="border-t border-slate-200 dark:border-slate-800">
+              <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-700">
+                Style overrides {b.style ? "(customized)" : "(inheriting theme)"}
+              </summary>
+              <div className="px-3 pb-3">
+                <BlockStyleEditor
+                  value={b.style}
+                  onChange={(s) => updateStyle(b.kind, s)}
+                />
+              </div>
+            </details>
+          )}
         </li>
       ))}
     </ul>
+  );
+}
+
+const ALIGN_OPTIONS: BlockAlignment[] = ["left", "center", "right", "justify"];
+
+function BlockStyleEditor({
+  value,
+  onChange,
+}: {
+  value: BlockStyle | undefined;
+  onChange: (s: BlockStyle | undefined) => void;
+}) {
+  const s = value ?? {};
+  const update = (patch: Partial<BlockStyle>) => {
+    const next: BlockStyle = { ...s, ...patch };
+    const hasContent =
+      next.fontSize !== undefined ||
+      next.textColor !== undefined ||
+      next.alignment !== undefined ||
+      (next.headingStyle && Object.values(next.headingStyle).some(Boolean));
+    onChange(hasContent ? next : undefined);
+  };
+  const heading = s.headingStyle ?? {};
+  const updateHeading = (patch: Partial<typeof heading>) => {
+    const nextHeading = { ...heading, ...patch };
+    const hasAny = Object.values(nextHeading).some(Boolean);
+    update({ headingStyle: hasAny ? nextHeading : undefined });
+  };
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <label className="text-xs">
+        <span className="mb-1 block font-medium text-slate-600">
+          Font size: {s.fontSize ?? "inherit"}pt
+        </span>
+        <input
+          type="range"
+          min={8}
+          max={24}
+          step={1}
+          value={s.fontSize ?? 11}
+          onChange={(e) => update({ fontSize: Number(e.target.value) })}
+          className="w-full"
+        />
+        {s.fontSize !== undefined && (
+          <button
+            type="button"
+            className="mt-1 text-[10px] text-slate-500 underline"
+            onClick={() => update({ fontSize: undefined })}
+          >
+            Reset
+          </button>
+        )}
+      </label>
+
+      <label className="text-xs">
+        <span className="mb-1 block font-medium text-slate-600">Text color</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={s.textColor ?? "#1f2937"}
+            onChange={(e) => update({ textColor: e.target.value })}
+            className="h-8 w-12 cursor-pointer rounded border border-slate-300 dark:border-slate-700"
+          />
+          <code className="text-[10px] text-slate-500">{s.textColor ?? "inherit"}</code>
+          {s.textColor && (
+            <button
+              type="button"
+              className="text-[10px] text-slate-500 underline"
+              onClick={() => update({ textColor: undefined })}
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      </label>
+
+      <label className="text-xs sm:col-span-2">
+        <span className="mb-1 block font-medium text-slate-600">Alignment</span>
+        <div className="flex flex-wrap gap-1">
+          {ALIGN_OPTIONS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className={`rounded border px-2 py-1 text-[11px] ${
+                s.alignment === a
+                  ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-900/40"
+                  : "border-slate-200 dark:border-slate-700"
+              }`}
+              onClick={() => update({ alignment: s.alignment === a ? undefined : a })}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </label>
+
+      <fieldset className="text-xs sm:col-span-2">
+        <legend className="mb-1 font-medium text-slate-600">Heading style</legend>
+        <div className="flex flex-wrap gap-3">
+          {(["bold", "italic", "underline", "uppercase"] as const).map((key) => (
+            <label key={key} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={Boolean(heading[key])}
+                onChange={(e) => updateHeading({ [key]: e.target.checked })}
+                className="h-3.5 w-3.5 rounded border-slate-300"
+              />
+              <span className="capitalize">{key}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </div>
   );
 }
 
@@ -402,6 +537,21 @@ function ThemeEditor({
             className="h-9 w-12 cursor-pointer rounded border border-slate-300 dark:border-slate-700"
           />
           <code className="text-xs text-slate-500">{theme.accentColor}</code>
+        </div>
+      </label>
+
+      <label className="text-sm sm:col-span-2">
+        <span className="mb-1 block font-medium">Timeline (Experience)</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={Boolean(theme.timeline)}
+            onChange={(e) => onChange({ ...theme, timeline: e.target.checked })}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          <span className="text-xs text-slate-500">
+            Draw a vertical line + dot next to each work experience entry.
+          </span>
         </div>
       </label>
     </div>

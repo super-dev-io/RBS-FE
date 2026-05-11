@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { generationsApi } from "@/api/generations";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusBadge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
+import {
+  downloadIntoCompanyFolder,
+  supportsCompanyFolderDownload,
+} from "@/lib/downloadInFolder";
 
 export default function BidderGenerationDetail() {
   const { id = "" } = useParams();
@@ -18,6 +24,33 @@ export default function BidderGenerationDetail() {
       return data && (data.status === "PENDING" || data.status === "PROCESSING") ? 3000 : false;
     },
   });
+  const [busy, setBusy] = useState(false);
+  const canPickFolder = supportsCompanyFolderDownload();
+
+  async function onDownload() {
+    if (!gen.data || busy) return;
+    setBusy(true);
+    try {
+      const g = gen.data;
+      const resumeBlob = await generationsApi.download(g.id);
+      const coverLetterBlob = g.hasCoverLetter
+        ? await generationsApi.downloadCoverLetter(g.id)
+        : null;
+      const res = await downloadIntoCompanyFolder({
+        companyName: g.companyName,
+        fullName: g.profile?.fullName ?? g.id,
+        resumeBlob,
+        coverLetterBlob,
+      });
+      if (res.mode === "directory" && res.files.length > 0) {
+        toast.success(`Saved ${res.files.length} file${res.files.length === 1 ? "" : "s"}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message ?? "Download failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -25,7 +58,7 @@ export default function BidderGenerationDetail() {
         title="Generation"
         description={gen.data ? `${gen.data.profile?.fullName} → ${gen.data.companyName}` : ""}
         actions={
-          <Link to="/app/history" className="btn-ghost">
+          <Link to="/app/folders" className="btn-ghost">
             ← Back
           </Link>
         }
@@ -39,21 +72,16 @@ export default function BidderGenerationDetail() {
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-800">
               <h2 className="section-title">Resume</h2>
               {gen.data.status === "COMPLETED" && (
-                <Button
-                  onClick={async () => {
-                    const blob = await generationsApi.download(gen.data!.id, "bidder");
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `resume-${gen.data!.companyName}-${gen.data!.roleTitle}.pdf`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  Download PDF
+                <Button onClick={onDownload} loading={busy}>
+                  Download{gen.data.hasCoverLetter ? " resume + cover letter" : ""}
                 </Button>
               )}
             </div>
+            {!canPickFolder && gen.data.status === "COMPLETED" && (
+              <p className="border-b border-slate-200 px-5 py-2 text-xs text-amber-600 dark:border-slate-800 dark:text-amber-400">
+                Your browser doesn't support folder downloads — files will save individually.
+              </p>
+            )}
             <div className="bg-slate-100 dark:bg-slate-950">
               {gen.data.status === "COMPLETED" ? (
                 <AuthedPdfFrame
@@ -76,6 +104,17 @@ export default function BidderGenerationDetail() {
               )}
             </div>
           </div>
+
+          {gen.data.status === "COMPLETED" && gen.data.coverLetterContent && (
+            <div className="card lg:col-span-2 overflow-hidden">
+              <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+                <h2 className="section-title">Cover letter</h2>
+              </div>
+              <pre className="whitespace-pre-wrap p-5 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+                {gen.data.coverLetterContent}
+              </pre>
+            </div>
+          )}
 
           <div className="card p-5">
             <h2 className="section-title mb-4">Details</h2>
